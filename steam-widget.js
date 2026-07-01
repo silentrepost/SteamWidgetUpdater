@@ -168,7 +168,7 @@ async function updateDiscordWidget(widget) {
     log("Updating Discord widget...");
 
     const response = await fetch(
-        `https://discord.com/api/v9/applications/{discordApplicationId}/users/{discordUserId}/identities/0/profile`,
+        `https://discord.com/api/v9/applications/${APPLICATION_ID}/users/${DISCORD_USER_ID}/identities/0/profile`,
         {
             method: "PATCH",
             headers: {
