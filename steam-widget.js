@@ -57,6 +57,14 @@ async function steam(url, retries = 3) {
 
     throw lastError;
 }
+    async function safeSteam(url, fallback = null) {
+        try {
+            return await steam(url);
+        } catch (err) {
+             log(`Optional Steam endpoint failed: ${url}`);
+            return fallback;
+        }
+    }
 
 // Account Age
 async function getProfileAge() {
