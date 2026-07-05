@@ -191,7 +191,7 @@ async function main() {
         recent,
         level,
         badges,
-        friendsRaw,
+        bans,
         profileAge
     ] = await Promise.all([
 
@@ -216,7 +216,7 @@ async function main() {
         ),
 
         steam(
-            `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&relationship=friend`
+            `https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`
         ),
 
         getProfileAge()
@@ -280,10 +280,10 @@ async function main() {
     const recentPlaytimeMs =
         recentMinutes * 60000;
 
-    // Friends Count
+    // VAC Bans
 
-    const friendCount =
-        friendsRaw.friendslist?.friends?.length || 0;
+    const vacBans =
+        bans.players?.[0]?.NumberOfVACBans || 0;
 
     // Badges Count
 
@@ -306,7 +306,7 @@ async function main() {
     log(`User: ${player?.personaname}`);
     log(`Steam Level: ${steamLevel}`);
     log(`Owned Games: ${ownedGames}`);
-    log(`Friends: ${friendCount}`);
+    log(`VAC Bans: ${vacBans}`);
     log(`Badges: ${badgeCount}`);
     log(`Profile Age: ${profileAge}`);
     log(`Most Played: ${mostPlayed?.name ?? "None"}`);
@@ -356,8 +356,8 @@ async function main() {
                 },
                 {
                     type: 2,
-                    name: "friends",
-                    value: friendCount
+                    name: "vac_bans",
+                    value: vacBans
                 },
                 {
                     type: 2,
