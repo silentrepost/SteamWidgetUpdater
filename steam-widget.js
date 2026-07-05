@@ -1,13 +1,11 @@
 // Steam → Discord Widget Updater
 // Runs in GitHub Actions
 
-const {
-    STEAM_API_KEY,
-    STEAM_ID,
-    BOT_TOKEN,
-    APPLICATION_ID,
-    DISCORD_USER_ID
-} = process.env;
+const STEAM_API_KEY = (process.env.STEAM_API_KEY || "").trim();
+const STEAM_ID = (process.env.STEAM_ID || "").trim();
+const BOT_TOKEN = (process.env.BOT_TOKEN || "").trim();
+const APPLICATION_ID = (process.env.APPLICATION_ID || "").trim();
+const DISCORD_USER_ID = (process.env.DISCORD_USER_ID || "").trim();
 
 const requiredSecrets = [
     "STEAM_API_KEY",
@@ -36,10 +34,21 @@ async function steam(url, retries = 3) {
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (compatible; SteamWidget/1.0)"
+                }
+            });
 
             if (!res.ok) {
                 const text = await res.text();
+                if (res.status === 401) {
+                    throw new Error(
+                        `Steam API 401: Tu API key fue rechazada. ` +
+                        `Regenerala en https://steamcommunity.com/dev/apikey ` +
+                        `sin restriccion de dominio.`
+                    );
+                }
                 throw new Error(`Steam API ${res.status}\n${text}`);
             }
 
@@ -50,27 +59,32 @@ async function steam(url, retries = 3) {
             log(`Steam request failed (${attempt}/${retries})`);
 
             if (attempt !== retries) {
-                await delay(1500);
+                await delay(1500 * attempt);
             }
         }
     }
 
     throw lastError;
 }
-    async function safeSteam(url, fallback = null) {
-        try {
-            return await steam(url);
-        } catch (err) {
-             log(`Optional Steam endpoint failed: ${url}`);
-            return fallback;
-        }
-    }
 
-// Account Age
+async function safeSteam(url, fallback = null) {
+    try {
+        return await steam(url);
+    } catch (err) {
+        log(`Optional Steam endpoint failed: ${err.message}`);
+        return fallback;
+    }
+}
+
 async function getProfileAge() {
     try {
         const response = await fetch(
-            `https://steamcommunity.com/profiles/${STEAM_ID}/?xml=1`
+            `https://steamcommunity.com/profiles/${encodeURIComponent(STEAM_ID)}/?xml=1`,
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (compatible; SteamWidget/1.0)"
+                }
+            }
         );
 
         if (!response.ok) return "Unknown";
@@ -84,9 +98,7 @@ async function getProfileAge() {
         if (isNaN(created)) return "Unknown";
 
         const now = new Date();
-
         let years = now.getFullYear() - created.getFullYear();
-
         const monthDiff = now.getMonth() - created.getMonth();
 
         if (
@@ -103,12 +115,11 @@ async function getProfileAge() {
     }
 }
 
-// Discord update
 async function updateDiscordWidget(widget) {
     log("Updating Discord widget...");
 
     const response = await fetch(
-        `https://discord.com/api/v9/applications/${APPLICATION_ID}/users/${DISCORD_USER_ID}/identities/0/profile`,
+        `https://discord.com/api/v10/applications/${encodeURIComponent(APPLICATION_ID)}/users/${encodeURIComponent(DISCORD_USER_ID)}/identities/0/profile`,
         {
             method: "PATCH",
             headers: {
@@ -139,15 +150,15 @@ async function main() {
         badges,
         profileAge
     ] = await Promise.all([
-        steam(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`),
+        steam(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(STEAM_API_KEY)}&steamids=${encodeURIComponent(STEAM_ID)}`),
 
-        steam(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&include_appinfo=1&include_played_free_games=1`),
+        steam(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${encodeURIComponent(STEAM_API_KEY)}&steamid=${encodeURIComponent(STEAM_ID)}&include_appinfo=1&include_played_free_games=1`),
 
-        steam(`https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}`),
+        steam(`https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${encodeURIComponent(STEAM_API_KEY)}&steamid=${encodeURIComponent(STEAM_ID)}`),
 
-        steam(`https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}`),
+        steam(`https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/?key=${encodeURIComponent(STEAM_API_KEY)}&steamid=${encodeURIComponent(STEAM_ID)}`),
 
-        steam(`https://api.steampowered.com/IPlayerService/GetBadges/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}`),
+        steam(`https://api.steampowered.com/IPlayerService/GetBadges/v1/?key=${encodeURIComponent(STEAM_API_KEY)}&steamid=${encodeURIComponent(STEAM_ID)}`),
 
         getProfileAge()
     ]);
@@ -165,9 +176,7 @@ async function main() {
 
     const totalPlaytimeMs = totalMinutes * 60000;
 
-    // MOST PLAYED GAME (NAME)
     let mostPlayed = null;
-
     if (games.length > 0) {
         mostPlayed = games.reduce((max, cur) =>
             (cur.playtime_forever || 0) > (max.playtime_forever || 0)
@@ -182,7 +191,6 @@ async function main() {
     );
 
     const recentPlaytimeMs = recentMinutes * 60000;
-
     const badgeCount = badges.response?.badges?.length || 0;
     const ownedGames = games.length;
     const steamLevel = level.response.player_level || 0;
