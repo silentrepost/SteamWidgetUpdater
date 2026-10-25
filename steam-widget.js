@@ -127,8 +127,7 @@ async function main() {
         owned,
         recent,
         level,
-        badges,
-        friendsRaw
+        badges
     ] = await Promise.all([
         steam(
             `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${STEAM_ID}`
@@ -144,9 +143,6 @@ async function main() {
         ),
         steam(
             `https://api.steampowered.com/IPlayerService/GetBadges/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}`
-        ),
-        steam(
-            `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&relationship=friend`
         )
     ]);
 
@@ -213,7 +209,7 @@ async function main() {
     console.log(`Recent 2-week playtime: ${recentMinutes} minutes (${(recentMinutes / 60).toFixed(1)} hours)`);
 
     // Friends Count
-    const friendCount = friendsRaw.friendslist?.friends?.length || 0;
+    const friendCount = 0;
     console.log(`Friend count: ${friendCount}`);
 
     // Badges Count
